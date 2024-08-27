@@ -23,7 +23,7 @@ class Card:
     def __init__(self, suit, rank):
         self.suit = suit
         self.rank = rank
-        self.image_path = f"cards/{rank_to_filename[rank]}_of_{suit}.png"
+        self.image_path = f"C:/Users/zacba/PycharmProjects/Blackjack/Blackjack_Proj/cards/{rank_to_filename[rank]}_of_{suit}.png"
         self.image = Image.open(self.image_path)
         self.image = self.image.resize((CARD_WIDTH, CARD_HEIGHT), Image.LANCZOS)
         self.tk_image = ImageTk.PhotoImage(self.image)
@@ -74,7 +74,7 @@ class Chips:
 class BlackjackGame(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("Blackjack")
+        self.title("Blackjack_Proj")
         self.geometry("1024x768")
 
         self.deck = Deck()
@@ -359,7 +359,7 @@ class BlackjackGame(tk.Tk):
 
     def player_wins_blackjack(self):
         self.show_all()
-        messagebox.showinfo("Game Over", "Player wins with Blackjack!")
+        messagebox.showinfo("Game Over", "Player wins with Blackjack_Proj!")
         self.player_chips.win_bet()
         self.playing = False
         self.update_display()
