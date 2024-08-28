@@ -11,7 +11,7 @@ CARD_WIDTH = 100
 CARD_HEIGHT = 145
 
 MIN_BET = 10
-MAX_BET = 1000
+MAX_BET = 100000
 
 rank_to_filename = {
     'Two': '2', 'Three': '3', 'Four': '4', 'Five': '5', 'Six': '6',
@@ -75,7 +75,7 @@ class BlackjackGame(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Blackjack_Proj")
-        self.geometry("1024x768")
+        self.geometry("1920x1080")
 
         self.deck = Deck()
         self.player_hand = Hand()
@@ -88,15 +88,15 @@ class BlackjackGame(tk.Tk):
 
     def create_widgets(self):
         # Load background image
-        self.background_image = Image.open(f"cards/blackjack.jpg")  # Make sure this file exists at the correct location
-        self.background_image = self.background_image.resize((1024, 768), Image.LANCZOS)
+        self.background_image = Image.open(f"cards/blackjack.jpg")
+        self.background_image = self.background_image.resize((1920, 1080), Image.LANCZOS)
         self.background_photo = ImageTk.PhotoImage(self.background_image)
         self.background_label = tk.Label(self, image=self.background_photo)
         self.background_label.place(x=0, y=0, relwidth=1, relheight=1)
 
         # Create card and chip placeholders
         self.player_cards_frame = tk.Frame(self, bg="green")
-        self.player_cards_frame.place(relx=0.5, rely=0.8, anchor=tk.CENTER)
+        self.player_cards_frame.place(relx=0.5, rely=0.6, anchor=tk.CENTER)
 
         self.dealer_cards_frame = tk.Frame(self, bg="green")
         self.dealer_cards_frame.place(relx=0.5, rely=0.2, anchor=tk.CENTER)
@@ -133,20 +133,20 @@ class BlackjackGame(tk.Tk):
 
         # Control Buttons
         self.hit_button = tk.Button(self, text="Hit", command=self.hit, state=tk.DISABLED, font=("Arial", 12))
-        self.hit_button.place(relx=0.3, rely=0.9, anchor=tk.CENTER)
+        self.hit_button.place(relx=0.41, rely=0.8, anchor=tk.CENTER)
 
         self.stand_button = tk.Button(self, text="Stand", command=self.stand, state=tk.DISABLED, font=("Arial", 12))
-        self.stand_button.place(relx=0.4, rely=0.9, anchor=tk.CENTER)
+        self.stand_button.place(relx=0.46, rely=0.8, anchor=tk.CENTER)
 
         self.double_button = tk.Button(self, text="Double Down", command=self.double_down, state=tk.DISABLED, font=("Arial", 12))
-        self.double_button.place(relx=0.5, rely=0.9, anchor=tk.CENTER)
+        self.double_button.place(relx=0.52, rely=0.8, anchor=tk.CENTER)
 
         self.split_button = tk.Button(self, text="Split", command=self.split, state=tk.DISABLED, font=("Arial", 12))
-        self.split_button.place(relx=0.6, rely=0.9, anchor=tk.CENTER)
+        self.split_button.place(relx=0.58, rely=0.8, anchor=tk.CENTER)
 
         # Recommendation Label
         self.recommendation_label = tk.Label(self, text="", font=("Arial", 14), bg="green", fg="white")
-        self.recommendation_label.place(relx=0.5, rely=0.95, anchor=tk.CENTER)
+        self.recommendation_label.place(relx=0.5, rely=0.85, anchor=tk.CENTER)
 
     def update_display(self):
         self.chips_label.config(text=f"Chips: {self.player_chips.total}")
