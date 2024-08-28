@@ -148,6 +148,10 @@ class BlackjackGame(tk.Tk):
         self.recommendation_label = tk.Label(self, text="", font=("Arial", 14), bg="green", fg="white")
         self.recommendation_label.place(relx=0.5, rely=0.85, anchor=tk.CENTER)
 
+        self.recommendation_button = tk.Button(self, text="?", command=self.show_recommendation_explanation,
+                                           font=("Arial", 10), bg="green", fg="white")
+        self.recommendation_button.place(relx=0.57, rely=0.85, anchor=tk.CENTER)
+
     def update_display(self):
         self.chips_label.config(text=f"Chips: {self.player_chips.total}")
         self.bet_button.config(state=tk.NORMAL if not self.playing else tk.DISABLED)
@@ -179,6 +183,55 @@ class BlackjackGame(tk.Tk):
         self.split_button.config(state=tk.NORMAL if self.playing and self.can_split() else tk.DISABLED)
 
         self.recommendation_label.config(text=self.get_recommendation())
+
+    def custom_popup(self, title, message, button_text="OK", command=None):
+        # Create a new dialog window that looks like part of the game
+        popup_window = tk.Toplevel(self)
+        popup_window.title(title)
+
+        # Make the window look like part of the game
+        popup_window.configure(bg="green")
+        popup_window.geometry("400x200")
+        popup_window.transient(self)
+        popup_window.grab_set()
+        popup_window.resizable(False, False)
+
+        # Add a border to the window to make it more integrated
+        popup_frame = tk.Frame(popup_window, bg="darkgreen", bd=10, relief=tk.RAISED)
+        popup_frame.pack(expand=True, fill=tk.BOTH, padx=10, pady=10)
+
+        # Label with the message, styled like the rest of the game
+        label = tk.Label(popup_frame, text=message, font=("Arial", 16), bg="green", fg="white", wraplength=350)
+        label.pack(pady=20)
+
+        # Style for the button
+        button_style = {
+            "font": ("Arial", 14),
+            "bg": "white",
+            "fg": "black",
+            "activebackground": "darkgreen",
+            "activeforeground": "white",
+            "relief": tk.RAISED,
+            "bd": 5,
+            "width": 10
+        }
+
+        # OK button or custom action button
+        action_button = tk.Button(popup_frame, text=button_text,
+                                  command=lambda: [popup_window.destroy(), command() if command else None],
+                                  **button_style)
+        action_button.pack(pady=20)
+
+        # Center the popup window on the screen
+        self.center_popup_window(popup_window)
+
+    def center_popup_window(self, window):
+        window.update_idletasks()
+        width = window.winfo_width()
+        height = window.winfo_height()
+        x = (window.winfo_screenwidth() // 2) - (width // 2)
+        y = (window.winfo_screenheight() // 2) - (height // 2)
+        window.geometry(f'{width}x{height}+{x}+{y}')
 
     def get_recommendation(self):
         if not self.dealer_hand.cards:
@@ -247,6 +300,79 @@ class BlackjackGame(tk.Tk):
             else:
                 return "Recommendation: Hit"
 
+    def get_recommendation_explanation(self):
+        if not self.dealer_hand.cards:
+            return "No recommendation available."
+
+        player_total = self.player_hand.get_value()
+        dealer_card = self.dealer_hand.cards[0]
+        dealer_value = values[dealer_card.rank]
+
+        # Determine if the hand is soft (contains an Ace counted as 11)
+        has_ace = any(card.rank == 'A' for card in self.player_hand.cards)
+        is_soft = has_ace and player_total + 10 <= 21
+
+        # Explanation for splitting
+        if self.can_split():
+            if self.player_hand.cards[0].rank == 'Ace':
+                return (
+                    "Splitting aces is recommended because it increases your chances of making 21 and forming two strong hands. "
+                    "Note that after splitting aces, you'll only receive one additional card per hand."
+                )
+            elif self.player_hand.cards[0].rank in ['2', '3', '7']:
+                return (
+                    f"Splitting {self.player_hand.cards[0].rank}s is a good idea because the dealer's {dealer_card.rank} is a low card. "
+                    "This gives you a potential advantage, as the dealer is more likely to bust with a weak up card."
+                )
+            elif self.player_hand.cards[0].rank == '8':
+                return (
+                    "Splitting 8s is recommended because a total of 16 is difficult to play. Splitting gives you a better chance "
+                    "to improve both hands."
+                )
+            elif dealer_value in [4, 5, 6]:
+                return (
+                    f"Splitting your pair is recommended because the dealer's {dealer_card.rank} is weak. However, be cautious, "
+                    "as this can be a risky move."
+                )
+
+        # Explanation for doubling down
+        if (player_total == 11) or (player_total == 10 and dealer_value < 10) or (
+                player_total == 9 and dealer_value in [3, 4, 5, 6]):
+            return f"Recommendation is to Double Down because your total is {player_total}, which is favorable against the dealer's {dealer_card.rank}."
+
+        # Explanation for hitting or standing
+        if is_soft:
+            if player_total == 18:
+                if dealer_value in [9, 10, 'A']:
+                    return "Recommendation is to Hit because your soft 18 is weak against the dealer's high card."
+                else:
+                    return "Recommendation is to Stand because your soft 18 is strong against the dealer's low card."
+            elif player_total in [15, 16, 17]:
+                return "Recommendation is to Double Down if allowed; otherwise, Hit, because your hand can improve."
+            elif player_total == 13 or player_total == 14:
+                return "Recommendation is to Double Down if allowed; otherwise, Hit, because you have a soft hand with potential."
+        else:
+            if player_total >= 17:
+                return "Recommendation is to Stand because your hand is strong enough."
+            elif player_total >= 13 and player_total <= 16:
+                if dealer_value >= 7:
+                    return "Recommendation is to Hit because the dealer's up card is strong."
+                else:
+                    return "Recommendation is to Stand because the dealer's up card is weak."
+            elif player_total == 12:
+                if dealer_value in [4, 5, 6]:
+                    return "Recommendation is to Stand because the dealer's up card is weak."
+                else:
+                    return "Recommendation is to Hit because the dealer's up card is strong."
+            else:
+                return "Recommendation is to Hit because your hand is too weak."
+
+        return "No specific recommendation."
+
+    def show_recommendation_explanation(self):
+        explanation = self.get_recommendation_explanation()
+        self.custom_popup("Recommendation Explanation", explanation, button_text="Continue", command=self.update_display)
+
     def add_bet(self, amount):
         current_bet = int(self.bet_entry.get() or 0)
         new_bet = current_bet + amount
@@ -257,13 +383,13 @@ class BlackjackGame(tk.Tk):
         try:
             bet = int(self.bet_entry.get())
             if bet < MIN_BET or bet > self.player_chips.total:
-                messagebox.showerror("Error", f"Invalid bet! Bet must be between {MIN_BET} and {self.player_chips.total}.")
+                self.custom_popup("Error", f"Invalid bet! Bet must be between {MIN_BET} and {self.player_chips.total}.")
             else:
                 self.player_chips.bet = bet
                 self.playing = True
                 self.start_game()
         except ValueError:
-            messagebox.showerror("Error", "Invalid input! Please enter an integer.")
+            self.custom_popup("Error", "Invalid input! Please enter an integer.")
 
     def start_game(self):
         self.deck = Deck()
@@ -320,23 +446,99 @@ class BlackjackGame(tk.Tk):
             self.playing = False
             self.play_split_hands()
         else:
-            messagebox.showerror("Error", "You can only split with two cards of the same rank.")
+            self.custom_popup("Error", "You can only split cards of the same rank!", button_text="Continue", command=self.update_display)
 
     def can_split(self):
         return len(self.player_hand.cards) == 2 and self.player_hand.cards[0].rank == self.player_hand.cards[1].rank
 
     def play_split_hands(self):
-        for hand in self.split_hands:
+        split_results = []
+        for i, hand in enumerate(self.split_hands):
             self.player_hand = hand
             self.update_display()
+
             while self.player_hand.get_value() < 21:
-                if self.player_hand.get_value() < 17:
+                action = self.ask_player_action_for_split_hand(
+                    i + 1)  # Ask the player for action on the current split hand
+                if action == "Hit":
                     self.player_hand.add_card(self.deck.deal())
-                else:
+                    self.update_display()
+                elif action == "Stand":
                     break
+
             if self.player_hand.get_value() > 21:
+                split_results.append("Bust")
                 self.player_busts()
-        self.stand()
+            else:
+                split_results.append(f"Stand with {self.player_hand.get_value()}")
+
+        self.show_dealer_card = True
+        self.update_display()
+        self.dealer_turn()
+
+        # Check results for both hands
+        final_results = []
+        for result in split_results:
+            if result == "Bust":
+                final_results.append("Lost")
+            else:
+                dealer_value = self.dealer_hand.get_value()
+                player_value = int(result.split(" ")[-1])
+
+                if dealer_value > 21:
+                    final_results.append("Won")
+                elif player_value > dealer_value:
+                    final_results.append("Won")
+                elif player_value < dealer_value:
+                    final_results.append("Lost")
+                else:
+                    final_results.append("Push")
+
+        # Display the results for both hands
+        for i, result in enumerate(final_results):
+            if result == "Won":
+                self.player_chips.win_bet()
+            elif result == "Lost":
+                self.player_chips.lose_bet()
+
+            self.custom_popup("Game Over", f"Result for hand {i + 1}: {result}", button_text="Continue", command=self.update_display)
+
+        self.playing = False
+        self.update_display()
+
+    def ask_player_action_for_split_hand(self, hand_number):
+        # Create a new dialog window
+        action_window = tk.Toplevel(self)
+        action_window.title("Choose Action")
+
+        # Set the size and position of the window
+        action_window.geometry("300x150")
+        action_window.transient(self)
+        action_window.grab_set()
+
+        # Label with the question
+        label = tk.Label(action_window,
+                         text=f"What would you like to do with Hand {hand_number}?\nChoose Hit or Stand.")
+        label.pack(pady=20)
+
+        # Create a variable to store the player's choice
+        player_action = tk.StringVar()
+
+        # Hit button
+        hit_button = tk.Button(action_window, text="Hit", command=lambda: player_action.set("Hit"))
+        hit_button.pack(side=tk.LEFT, padx=20, pady=20)
+
+        # Stand button
+        stand_button = tk.Button(action_window, text="Stand", command=lambda: player_action.set("Stand"))
+        stand_button.pack(side=tk.RIGHT, padx=20, pady=20)
+
+        # Wait for the player to choose
+        self.wait_variable(player_action)
+
+        # Close the dialog window
+        action_window.destroy()
+
+        return player_action.get()
 
     def show_all(self):
         self.show_dealer_card = True
@@ -359,38 +561,38 @@ class BlackjackGame(tk.Tk):
 
     def player_wins_blackjack(self):
         self.show_all()
-        messagebox.showinfo("Game Over", "Player wins with Blackjack_Proj!")
+        self.custom_popup("Game Over", "BLACKJACKKKKKK BABYYYYYY!", button_text="Continue", command=self.update_display)
         self.player_chips.win_bet()
         self.playing = False
         self.update_display()
 
     def player_busts(self):
         self.show_all()
-        messagebox.showinfo("Game Over", "Player busts!")
+        self.custom_popup("Game Over", "You busted and lost!", button_text="Continue", command=self.update_display)
         self.player_chips.lose_bet()
         self.playing = False
         self.update_display()
 
     def player_wins(self):
-        messagebox.showinfo("Game Over", "Player wins!")
+        self.custom_popup("Game Over", "Player wins!", button_text="Continue", command=self.update_display)
         self.player_chips.win_bet()
         self.playing = False
         self.update_display()
 
     def dealer_busts(self):
-        messagebox.showinfo("Game Over", "Dealer busts!")
+        self.custom_popup("Game Over", "Dealer Busts!", button_text="Continue", command=self.update_display)
         self.player_chips.win_bet()
         self.playing = False
         self.update_display()
 
     def dealer_wins(self):
-        messagebox.showinfo("Game Over", "Dealer wins!")
+        self.custom_popup("Game Over", "Dealer wins!", button_text="Continue", command=self.update_display)
         self.player_chips.lose_bet()
         self.playing = False
         self.update_display()
 
     def push(self):
-        messagebox.showinfo("Game Over", "It's a tie! Push.")
+        self.custom_popup("Game Over", "Its a Tie (Push)!", button_text="Continue", command=self.update_display)
         self.playing = False
         self.update_display()
 
