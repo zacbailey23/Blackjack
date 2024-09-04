@@ -1,9 +1,12 @@
+import os
+import sys
 import tkinter as tk
 from tkinter import messagebox
 from PIL import Image, ImageTk
 import random
 
-values = {'Two': 2, 'Three': 3, 'Four': 4, 'Five': 5, 'Six': 6, 'Seven': 7, 'Eight': 8, 'Nine': 9, 'Ten': 10, 'Jack': 10, 'Queen': 10, 'King': 10, 'Ace': 11}
+values = {'Two': 2, 'Three': 3, 'Four': 4, 'Five': 5, 'Six': 6, 'Seven': 7, 'Eight': 8, 'Nine': 9, 'Ten': 10,
+          'Jack': 10, 'Queen': 10, 'King': 10, 'Ace': 11}
 suits = ['hearts', 'diamonds', 'clubs', 'spades']
 ranks = ['Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Jack', 'Queen', 'King', 'Ace']
 
@@ -19,17 +22,29 @@ rank_to_filename = {
     'Jack': 'jack', 'Queen': 'queen', 'King': 'king', 'Ace': 'ace'
 }
 
+
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        base_path = sys._MEIPASS  # This is where PyInstaller stores temporary files
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
+
 class Card:
     def __init__(self, suit, rank):
         self.suit = suit
         self.rank = rank
-        self.image_path = f"C:/Users/zacba/PycharmProjects/Blackjack/Blackjack_Proj/cards/{rank_to_filename[rank]}_of_{suit}.png"
+        self.image_path = resource_path(f"cards/{rank_to_filename[rank]}_of_{suit}.png")
         self.image = Image.open(self.image_path)
         self.image = self.image.resize((CARD_WIDTH, CARD_HEIGHT), Image.LANCZOS)
         self.tk_image = ImageTk.PhotoImage(self.image)
 
     def __str__(self):
         return f"{self.rank} of {self.suit}"
+
 
 class Deck:
     def __init__(self):
@@ -38,6 +53,7 @@ class Deck:
 
     def deal(self):
         return self.deck.pop()
+
 
 class Hand:
     def __init__(self):
@@ -60,6 +76,7 @@ class Hand:
     def get_value(self):
         return self.value
 
+
 class Chips:
     def __init__(self):
         self.total = 1000
@@ -70,6 +87,7 @@ class Chips:
 
     def lose_bet(self):
         self.total -= self.bet
+
 
 class BlackjackGame(tk.Tk):
     def __init__(self):
@@ -83,22 +101,101 @@ class BlackjackGame(tk.Tk):
         self.player_chips = Chips()
         self.playing = False
         self.show_dealer_card = False
+
+        # Initialize the list to store image references
+        self.card_images = []  # This ensures images are not garbage collected
+
         self.create_widgets()
         self.update_display()
 
+    def deal_card_face_down_with_animation(self, card, target_frame, start_x, start_y, end_x, end_y, duration=500):
+        """Animate the card moving from the deck to the target position, face down."""
+        frames = int(duration / 10)
+        delta_x = (end_x - start_x) / frames
+        delta_y = (end_y - start_y) / frames
+
+        # Load the card back image
+        back_image = Image.open(resource_path("cards/back.png"))
+        back_image = back_image.resize((CARD_WIDTH, CARD_HEIGHT), Image.LANCZOS)
+        back_photo = ImageTk.PhotoImage(back_image)
+
+        # Create a label to animate the face-down card
+        card_label = tk.Label(self, image=back_photo)
+        card_label.place(x=start_x, y=start_y)
+
+        # Store the reference to prevent garbage collection
+        self.card_images.append(back_photo)
+
+        def animate(step=0):
+            if step < frames:
+                new_x = start_x + delta_x * step
+                new_y = start_y + delta_y * step
+                card_label.place(x=new_x, y=new_y)
+                self.after(10, animate, step + 1)
+            else:
+                card_label.place_forget()  # Remove the temporary animation card
+
+                # Place the card face down in the target frame
+                final_card_label = tk.Label(target_frame, image=back_photo, width=CARD_WIDTH, height=CARD_HEIGHT)
+                final_card_label.pack(side=tk.LEFT, padx=5)
+
+                # Ensure the image reference persists
+                final_card_label.image = back_photo
+                self.card_images.append(back_photo)
+
+                # Debugging output to confirm placement
+                print(f"Face-down card placed at {end_x}, {end_y}")
+
+        animate()
+
+    def deal_card_with_animation(self, card, target_frame, start_x, start_y, end_x, end_y, duration=500):
+        """Animate the card moving from the deck to the target position."""
+        frames = int(duration / 10)
+        delta_x = (end_x - start_x) / frames
+        delta_y = (end_y - start_y) / frames
+
+        # Create a label to animate the card
+        card_label = tk.Label(self, image=card.tk_image)
+        card_label.place(x=start_x, y=start_y)
+
+        # Ensure the image reference is stored to prevent garbage collection
+        self.card_images.append(card.tk_image)
+
+        def animate(step=0):
+            if step < frames:
+                new_x = start_x + delta_x * step
+                new_y = start_y + delta_y * step
+                card_label.place(x=new_x, y=new_y)
+                self.after(10, animate, step + 1)
+            else:
+                card_label.place_forget()  # Remove the temporary animation card
+
+                # Create the final card label in the target frame
+                final_card_label = tk.Label(target_frame, image=card.tk_image, width=CARD_WIDTH, height=CARD_HEIGHT)
+                final_card_label.pack(side=tk.LEFT, padx=5)
+
+                # Ensure the image reference persists
+                final_card_label.image = card.tk_image
+                self.card_images.append(card.tk_image)
+
+                # Debugging output to confirm placement
+                print(f"Card {card} placed at {end_x}, {end_y}")
+
+        animate()
+
     def create_widgets(self):
         # Load background image
-        self.background_image = Image.open(f"cards/blackjack.jpg")
+        self.background_image = Image.open(resource_path("cards/blackjack.jpg"))
         self.background_image = self.background_image.resize((1920, 1080), Image.LANCZOS)
         self.background_photo = ImageTk.PhotoImage(self.background_image)
         self.background_label = tk.Label(self, image=self.background_photo)
         self.background_label.place(x=0, y=0, relwidth=1, relheight=1)
 
         # Create card and chip placeholders
-        self.player_cards_frame = tk.Frame(self, bg="green")
+        self.player_cards_frame = tk.Frame(self, bg=None)
         self.player_cards_frame.place(relx=0.5, rely=0.6, anchor=tk.CENTER)
 
-        self.dealer_cards_frame = tk.Frame(self, bg="green")
+        self.dealer_cards_frame = tk.Frame(self, bg=None)
         self.dealer_cards_frame.place(relx=0.5, rely=0.2, anchor=tk.CENTER)
 
         self.chips_frame = tk.Frame(self, bg="green")
@@ -107,7 +204,7 @@ class BlackjackGame(tk.Tk):
         # Load chip images
         self.chip_images = {}
         for chip_value in [10, 25, 100]:
-            chip_image = Image.open(f"cards/{chip_value}.png")
+            chip_image = Image.open(resource_path(f"cards/{chip_value}.png"))
             chip_image = chip_image.resize((50, 50), Image.LANCZOS)
             self.chip_images[chip_value] = ImageTk.PhotoImage(chip_image)
 
@@ -128,7 +225,8 @@ class BlackjackGame(tk.Tk):
         self.bet_button.place(relx=0.8, rely=0.55, anchor=tk.CENTER)
 
         # Player Chips
-        self.chips_label = tk.Label(self, text=f"Chips: {self.player_chips.total}", font=("Arial", 14), bg="green", fg="white")
+        self.chips_label = tk.Label(self, text=f"Chips: {self.player_chips.total}", font=("Arial", 14), bg="green",
+                                    fg="white")
         self.chips_label.place(relx=0.8, rely=0.35, anchor=tk.CENTER)
 
         # Control Buttons
@@ -138,7 +236,8 @@ class BlackjackGame(tk.Tk):
         self.stand_button = tk.Button(self, text="Stand", command=self.stand, state=tk.DISABLED, font=("Arial", 12))
         self.stand_button.place(relx=0.46, rely=0.8, anchor=tk.CENTER)
 
-        self.double_button = tk.Button(self, text="Double Down", command=self.double_down, state=tk.DISABLED, font=("Arial", 12))
+        self.double_button = tk.Button(self, text="Double Down", command=self.double_down, state=tk.DISABLED,
+                                       font=("Arial", 12))
         self.double_button.place(relx=0.52, rely=0.8, anchor=tk.CENTER)
 
         self.split_button = tk.Button(self, text="Split", command=self.split, state=tk.DISABLED, font=("Arial", 12))
@@ -149,31 +248,38 @@ class BlackjackGame(tk.Tk):
         self.recommendation_label.place(relx=0.5, rely=0.85, anchor=tk.CENTER)
 
         self.recommendation_button = tk.Button(self, text="?", command=self.show_recommendation_explanation,
-                                           font=("Arial", 10), bg="green", fg="white")
+                                               font=("Arial", 10), bg="green", fg="white")
         self.recommendation_button.place(relx=0.57, rely=0.85, anchor=tk.CENTER)
 
     def update_display(self):
         self.chips_label.config(text=f"Chips: {self.player_chips.total}")
         self.bet_button.config(state=tk.NORMAL if not self.playing else tk.DISABLED)
 
+        # Clear the existing cards from the frames
         for widget in self.player_cards_frame.winfo_children():
             widget.destroy()
         for widget in self.dealer_cards_frame.winfo_children():
             widget.destroy()
 
+        # Display player's cards
         for card in self.player_hand.cards:
             card_label = tk.Label(self.player_cards_frame, image=card.tk_image)
             card_label.pack(side=tk.LEFT, padx=5)
 
-        for card in self.dealer_hand.cards:
-            if self.show_dealer_card or card == self.dealer_hand.cards[0]:
-                card_label = tk.Label(self.dealer_cards_frame, image=card.tk_image)
-            else:
-                back_image = Image.open("cards/back.png")
+        # Display dealer's cards
+        for i, card in enumerate(self.dealer_hand.cards):
+            if i == 0 and not self.show_dealer_card:
+                # Show the first card face down if dealer's card is hidden
+                back_image = Image.open(resource_path("cards/back.png"))
                 back_image = back_image.resize((CARD_WIDTH, CARD_HEIGHT), Image.LANCZOS)
                 back_photo = ImageTk.PhotoImage(back_image)
                 card_label = tk.Label(self.dealer_cards_frame, image=back_photo)
-                card_label.image = back_photo  # Keep a reference
+                card_label.image = back_photo  # Keep a reference to avoid garbage collection
+            elif i == 1 and not self.show_dealer_card:
+                # The second dealer card should not be displayed until the dealer's turn
+                continue
+            else:
+                card_label = tk.Label(self.dealer_cards_frame, image=card.tk_image)
             card_label.pack(side=tk.LEFT, padx=5)
 
         self.hit_button.config(state=tk.NORMAL if self.playing else tk.DISABLED)
@@ -371,7 +477,8 @@ class BlackjackGame(tk.Tk):
 
     def show_recommendation_explanation(self):
         explanation = self.get_recommendation_explanation()
-        self.custom_popup("Recommendation Explanation", explanation, button_text="Continue", command=self.update_display)
+        self.custom_popup("Recommendation Explanation", explanation, button_text="Continue",
+                          command=self.update_display)
 
     def add_bet(self, amount):
         current_bet = int(self.bet_entry.get() or 0)
@@ -395,21 +502,69 @@ class BlackjackGame(tk.Tk):
         self.deck = Deck()
         self.player_hand = Hand()
         self.dealer_hand = Hand()
-        self.show_dealer_card = False
+        self.show_dealer_card = False  # Dealer's first card is face down initially
 
-        self.player_hand.add_card(self.deck.deal())
-        self.player_hand.add_card(self.deck.deal())
-        self.dealer_hand.add_card(self.deck.deal())
-        self.dealer_hand.add_card(self.deck.deal())
+        # Clear previous cards from display
+        for widget in self.player_cards_frame.winfo_children():
+            widget.destroy()
+        for widget in self.dealer_cards_frame.winfo_children():
+            widget.destroy()
 
-        self.update_display()
+        # Coordinates for animation
+        deck_x, deck_y = 960, 100  # Assuming the deck is centered at the top of the screen
+        player_end_x, player_end_y = 860, 600  # Example final position for player cards
+        dealer_end_x, dealer_end_y = 860, 200  # Example final position for dealer cards
 
+        # Deal initial cards (only to the hand, not to the display)
+        player_card1 = self.deck.deal()
+        player_card2 = self.deck.deal()
+        dealer_card1 = self.deck.deal()
+        dealer_card2 = self.deck.deal()
+
+        # Add cards to hands
+        self.player_hand.add_card(player_card1)
+        self.player_hand.add_card(player_card2)
+        self.dealer_hand.add_card(dealer_card1)
+        self.dealer_hand.add_card(dealer_card2)
+
+        # Debugging output
+        print(f"Player cards dealt: {player_card1}, {player_card2}")
+        print(f"Dealer cards dealt: {dealer_card1}, {dealer_card2} (one face down)")
+
+        # Animate and display the player's cards
+        self.deal_card_with_animation(player_card1, self.player_cards_frame, deck_x, deck_y, player_end_x, player_end_y)
+        self.after(600, lambda: self.deal_card_with_animation(player_card2, self.player_cards_frame, deck_x, deck_y,
+                                                              player_end_x + 120, player_end_y))
+
+        # Animate and display the dealer's first card face down
+        self.after(1200, lambda: self.deal_card_face_down_with_animation(dealer_card1, self.dealer_cards_frame, deck_x,
+                                                                         deck_y, dealer_end_x, dealer_end_y))
+
+        # Animate and display the dealer's second card face up
+        self.after(1800, lambda: self.deal_card_with_animation(dealer_card2, self.dealer_cards_frame, deck_x, deck_y,
+                                                               dealer_end_x + 120, dealer_end_y))
+
+        # After all animations are complete, update the display to ensure everything is correct
+        self.after(2400, self.update_display)
+
+        # Check for Blackjack after all animations are done
+        self.after(2400, self.check_blackjack)
+
+    def check_blackjack(self):
         if self.player_hand.get_value() == 21:
             self.player_wins_blackjack()
 
     def hit(self):
-        self.player_hand.add_card(self.deck.deal())
-        self.update_display()
+        if self.playing:
+            self.player_hand.add_card(self.deck.deal())
+            self.update_display()
+            if self.player_hand.get_value() > 21:
+                self.show_all()
+                self.player_busts()
+            elif self.player_hand.get_value() == 21:
+                self.stand()
+
+    def check_player_bust(self):
         if self.player_hand.get_value() > 21:
             self.show_all()
             self.player_busts()
@@ -446,7 +601,8 @@ class BlackjackGame(tk.Tk):
             self.playing = False
             self.play_split_hands()
         else:
-            self.custom_popup("Error", "You can only split cards of the same rank!", button_text="Continue", command=self.update_display)
+            self.custom_popup("Error", "You can only split cards of the same rank!", button_text="Continue",
+                              command=self.update_display)
 
     def can_split(self):
         return len(self.player_hand.cards) == 2 and self.player_hand.cards[0].rank == self.player_hand.cards[1].rank
@@ -501,7 +657,8 @@ class BlackjackGame(tk.Tk):
             elif result == "Lost":
                 self.player_chips.lose_bet()
 
-            self.custom_popup("Game Over", f"Result for hand {i + 1}: {result}", button_text="Continue", command=self.update_display)
+            self.custom_popup("Game Over", f"Result for hand {i + 1}: {result}", button_text="Continue",
+                              command=self.update_display)
 
         self.playing = False
         self.update_display()
@@ -600,6 +757,9 @@ class BlackjackGame(tk.Tk):
         self.player_chips = Chips()
         self.update_display()
         self.bet_entry.delete(0, tk.END)
+
+
+
 
 if __name__ == '__main__':
     game = BlackjackGame()
